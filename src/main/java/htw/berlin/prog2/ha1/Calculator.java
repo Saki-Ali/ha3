@@ -14,6 +14,11 @@ public class Calculator {
 
     private String latestOperation = "";
 
+    // --- NEU für wiederholtes "=" -----------------------------------------
+    private double lastOperand = Double.NaN;   // <<< NEW: merkt den zuletzt benutzten 2. Operanden
+    private String lastOperator = "";          // <<< NEW: merkt den zuletzt benutzten Operator
+
+
     /**
      * @return den aktuellen Bildschirminhalt als String
      */
@@ -60,7 +65,19 @@ public class Calculator {
      * @param operation "+" für Addition, "-" für Substraktion, "x" für Multiplikation, "/" für Division
      */
     public void pressBinaryOperationKey(String operation)  {
-        latestValue = Double.parseDouble(screen);
+        if ("*".equals(operation)) operation = "x";
+
+        double current = Double.parseDouble(screen);
+
+        // FALL: Es gibt bereits einen Operator, aber der 2. Operand wurde NOCH NICHT eingegeben
+        // -> nur den Operator austauschen (kein Rechnen, kein Zustand sonst ändern)
+        if (!latestOperation.isEmpty() && latestValue == current) {
+            latestOperation = operation;
+            return;
+        }
+
+        // normaler Fall: ersten Operanden übernehmen und Operator setzen
+        latestValue = current;
         latestOperation = operation;
     }
 
@@ -118,16 +135,68 @@ public class Calculator {
      * und das Ergebnis direkt angezeigt.
      */
     public void pressEqualsKey() {
-        var result = switch(latestOperation) {
-            case "+" -> latestValue + Double.parseDouble(screen);
-            case "-" -> latestValue - Double.parseDouble(screen);
-            case "x" -> latestValue * Double.parseDouble(screen);
-            case "/" -> latestValue / Double.parseDouble(screen);
-            default -> throw new IllegalArgumentException();
-        };
-        screen = Double.toString(result);
-        if(screen.equals("Infinity")) screen = "Error";
-        if(screen.endsWith(".0")) screen = screen.substring(0,screen.length()-2);
-        if(screen.contains(".") && screen.length() > 11) screen = screen.substring(0, 10);
+        if (latestOperation == null) latestOperation = "";
+        if (lastOperator == null)    lastOperator = "";
+
+        double current = Double.parseDouble(screen);
+
+        // Fall A: aktiver Operator vorhanden -> erste Ausführung (z. B. 2 + 3 = 5)
+        if (!latestOperation.isEmpty()) {
+            double result = switch (latestOperation) {
+                case "+" -> latestValue + current;
+                case "-" -> latestValue - current;
+                case "x" -> latestValue * current;
+                case "/" -> {
+                    if (current == 0.0) {
+                        screen = "Error";
+                        latestOperation = "";
+                        yield Double.NaN;   // ✅ use yield instead of return
+                    }
+                    yield latestValue / current;
+                }
+                default -> throw new IllegalArgumentException();
+            };
+
+            screen = Double.toString(result);
+            if (screen.equals("Infinity") || screen.equals("-Infinity") || screen.equals("NaN")) screen = "Error";
+            if (screen.endsWith(".0")) screen = screen.substring(0, screen.length() - 2);
+            if (screen.contains(".") && screen.length() > 11) screen = screen.substring(0, 10);
+
+            // Für wiederholtes "=" merken
+            lastOperand  = current;
+            lastOperator = latestOperation;
+
+            // Ergebnis als Basis; aktiven Operator „verbrauchen“
+            latestValue = result;
+            latestOperation = "";
+            return;
+        }
+
+        // Fall B: Kein aktiver Operator -> letzte Operation wiederholen (z. B. 5 = -> 8)
+        if (!lastOperator.isEmpty() && !Double.isNaN(lastOperand)) {
+            double base = Double.parseDouble(screen);
+
+            double result = switch (lastOperator) {
+                case "+" -> base + lastOperand;
+                case "-" -> base - lastOperand;
+                case "x" -> base * lastOperand;
+                case "/" -> {
+                    if (lastOperand == 0.0) {
+                        screen = "Error";
+                        yield Double.NaN;   // ✅ use yield instead
+                    }
+                    yield base / lastOperand;
+                }
+
+                default -> throw new IllegalArgumentException();
+            };
+
+            screen = Double.toString(result);
+            if (screen.equals("Infinity") || screen.equals("-Infinity") || screen.equals("NaN")) screen = "Error";
+            if (screen.endsWith(".0")) screen = screen.substring(0, screen.length() - 2);
+            if (screen.contains(".") && screen.length() > 11) screen = screen.substring(0, 10);
+
+            latestValue = result; // Basis für weiteres "="
+        }
     }
 }

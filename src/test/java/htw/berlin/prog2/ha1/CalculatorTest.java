@@ -87,6 +87,53 @@ class CalculatorTest {
 
         assertEquals(expected, actual);
     }
+    @Test
+    @DisplayName("should subtract two positive numbers correctly")
+    void testSimpleSubtraction() {
+        Calculator calc = new Calculator();
+
+        calc.pressDigitKey(9);
+        calc.pressBinaryOperationKey("-");
+        calc.pressDigitKey(4);
+        calc.pressEqualsKey();
+
+        assertEquals("5", calc.readScreen());
+    }
+
+    @Test
+    @DisplayName("should repeat last operation when pressing equals multiple times")
+    void testRepeatOperation() {
+        Calculator calc = new Calculator();
+
+        calc.pressDigitKey(2);
+        calc.pressBinaryOperationKey("+");
+        calc.pressDigitKey(3);
+        calc.pressEqualsKey();   // 2 + 3 = 5
+        calc.pressEqualsKey();   // should repeat +3 => 8
+
+        String expected = "8";
+        String actual = calc.readScreen();
+
+        assertEquals(expected, actual);
+    }
+    @Test
+    @DisplayName("should use the new operator if user changes it before entering second operand")
+    void testChangeOperatorBeforeSecondOperand() {
+        Calculator calc = new Calculator();
+
+        calc.pressDigitKey(7);
+        calc.pressBinaryOperationKey("+");
+        calc.pressBinaryOperationKey("*"); // Nutzer ändert Meinung: + -> *
+        calc.pressDigitKey(3);
+        calc.pressEqualsKey();
+
+        String expected = "21"; // 7 * 3
+        String actual = calc.readScreen();
+
+        assertEquals(expected, actual);
+    }
+
+
 
 
     //TODO hier weitere Tests erstellen
